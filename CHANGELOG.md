@@ -1,3 +1,15 @@
+# 2026.2.0 (2026-10-12)
+
+Version `2026.2.0` is a major release.
+
+### Notable Changes
+- add PerfFlowAspect reader (#183)
+
+### Bugfixes
+- Fix reading `rocm-activity-profile` for rocm>7 format (#181)
+
+### Internal Updates
+
 # 2026.1.0 (2026-03-06)
 
 Version `2026.1.0` is a major release.
