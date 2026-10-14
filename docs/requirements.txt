@@ -7,3 +7,5 @@ cython
 multiprocess
 textX
 caliper-reader
+sphinx
+sphinx_rtd_theme

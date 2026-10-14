@@ -20,7 +20,6 @@
 import sys
 import os
 
-import pkg_resources
 
 # -- Project information -----------------------------------------------------
 
@@ -77,12 +76,7 @@ master_doc = "index"
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 
-dist = pkg_resources.Distribution(__file__)
-sys.path.append(".")  # make 'conf' module findable
-ep = pkg_resources.EntryPoint.parse("hatchet = conf:HatchetStyle", dist=dist)
-dist._ep_map = {"pygments.styles": {"plugin1": ep}}
-pkg_resources.working_set.add(dist)
-
+# Sphinx imports the custom style directly from docs/_pygments/style.py
 sys.path.append(os.path.abspath("./_pygments"))
 pygments_style = "style.HatchetStyle"
 
