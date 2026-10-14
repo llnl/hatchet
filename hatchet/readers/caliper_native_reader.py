@@ -95,21 +95,29 @@ class CaliperNativeReader:
         # Aggregate on nid if timeseries data
         if self.timeseries_level in df_metrics:
             df_new = df_metrics.groupby("nid").aggregate("mean").reset_index()
-        # Don't agg multi rank or if sampling
-        elif "mpi.rank" in df_metrics or sampling:
+        # Don't agg multi rank, unless sampling: several sampling records (the
+        # same function sampled from different call stacks or innermost
+        # regions) can map to the same node, so they must be summed to give
+        # one row per node (and rank)
+        elif "mpi.rank" in df_metrics and not sampling:
             df_new = df_metrics
         else:  # Aggregate data with string attributes appropriately
+            group_cols = ["nid"]
+            if "mpi.rank" in df_metrics:
+                group_cols.append("mpi.rank")
             # Define dynamic aggregation functions
             aggregation_functions = {}
             for column in df_metrics.columns:
-                if column == "nid":
+                if column in group_cols:
                     pass
                 elif is_numeric_dtype(df_metrics[column].dtype):  # Numeric columns
                     aggregation_functions[column] = lambda x: x.sum(skipna=False)
                 else:  # Non-numeric columns
                     aggregation_functions[column] = lambda x: tuple(set(x))
 
-            df_new = df_metrics.groupby("nid").agg(aggregation_functions).reset_index()
+            df_new = (
+                df_metrics.groupby(group_cols).agg(aggregation_functions).reset_index()
+            )
 
         return df_new
 
@@ -254,19 +262,13 @@ class CaliperNativeReader:
             else:
                 # else create the parent and add parent/child
 
-                # if root node, end recursive call to create parent nodes
+                # if root node, end recursive call to create parent nodes.
+                # child_node is already in idx_to_node (registered by the caller
+                # or by the previous recursion step), so it is not added again;
+                # registering it twice gave the root a second, orphaned nid.
+                # The counter still advances so existing nid values don't shift.
                 if not parent_callpath:
                     list_roots.append(child_node)
-
-                    node_dict = dict(
-                        {
-                            "name": child_node.frame["name"],
-                            "node": child_node,
-                            "nid": self.global_nid,
-                        }
-                    )
-
-                    self.idx_to_node[self.global_nid] = node_dict
                     self.global_nid += 1
                 else:
                     grandparent_callpath = parent_callpath[:-1]
@@ -519,6 +521,7 @@ class CaliperNativeReader:
                     if metric_rows.empty:
                         # add a single row
                         node_dict = dict(default_metric_dict)
+                        node_dict["nid"] = row["nid"]
                         missing_nodes.append(node_dict)
                 else:
                     if metric_rows.empty:

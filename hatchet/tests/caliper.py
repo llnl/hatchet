@@ -1088,3 +1088,22 @@ def test_flat_profile_sampling(caliper_hatchet_sample_profile):
             sorted_df.reset_index()["name"],
         )
     )
+
+
+def test_sampling_profile_one_row_per_node(caliper_hatchet_sample_profile):
+    gf = GraphFrame.from_caliperreader(caliper_hatchet_sample_profile)
+
+    # every graph node has exactly one row, including call-path nodes that
+    # were never sampled themselves (GitHub issue #162)
+    assert gf.dataframe.index.is_unique
+    assert set(gf.graph.traverse()) == set(gf.dataframe.index)
+
+    # these look up every graph node in the dataframe, and used to raise KeyError
+    gf.tree()
+    gf.to_flamegraph()
+
+    # with one row per node, the default drop_index_levels() (mean) gives the
+    # same flat profile as np.sum
+    gf.drop_index_levels()
+    flat = gf.dataframe.groupby("name")["count"].sum().sort_values(ascending=False)
+    assert flat.iloc[0:4].tolist() == [5028, 4173, 4114, 3800]
