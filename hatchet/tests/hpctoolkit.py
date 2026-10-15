@@ -203,3 +203,26 @@ def test_inclusive_time_calculation(data_dir, calc_pi_hpct_db):
     assert all(
         gf.dataframe["time (inc)"].to_numpy() == gf.dataframe["orig_inc_time"].to_numpy()
     )
+
+
+def test_inclusive_time_calculation_rank_thread(osu_allgather_hpct_db):
+    """Validate update_inclusive_columns() on a sorted (node, rank, thread) index.
+
+    This used to raise an AttributeError, see
+    https://github.com/LLNL/hatchet/issues/106.
+    """
+    gf = GraphFrame.from_hpctoolkit(str(osu_allgather_hpct_db))
+    assert gf.dataframe.index.names == ["node", "rank", "thread"]
+    gf.dataframe.sort_index(inplace=True)
+
+    gf.update_inclusive_columns()
+
+    # the inclusive time of a (node, rank, thread) is the exclusive time of
+    # all the nodes in its subgraph (each counted once) for that rank and thread
+    df = gf.dataframe.reset_index()
+    nids = df["node"].map(lambda n: n._hatchet_nid)
+    for node in list(gf.graph.traverse())[::25]:
+        subgraph = nids.isin([n._hatchet_nid for n in node.traverse()])
+        expected = df[subgraph].groupby(["rank", "thread"])["time"].sum()
+        actual = df[nids == node._hatchet_nid].set_index(["rank", "thread"])
+        assert np.allclose(actual["time (inc)"], expected.reindex(actual.index))

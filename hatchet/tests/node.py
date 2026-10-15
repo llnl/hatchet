@@ -122,3 +122,32 @@ def check_dag_equal():
 
     assert not diamond.dag_equal(chain)
     assert not diamond.dag_equal(tree)
+
+
+def test_compare_with_non_node():
+    """Comparing a Node with another type must not raise AttributeError.
+
+    pandas compares index labels with other objects (e.g., the ints of a
+    "rank" level, or slices) and expects a TypeError or a plain False, see
+    https://github.com/LLNL/hatchet/issues/106.
+    """
+    a = Node(Frame(name="a"), hnid=0)
+    b = Node(Frame(name="b"), hnid=1)
+
+    # comparisons between nodes still use _hatchet_nid
+    assert a < b and b > a and a <= b and b >= a and a != b
+    assert a == Node(Frame(name="other"), hnid=0)
+
+    for other in [0, 1.5, "a", None, (a, 0), slice(None)]:
+        assert not (a == other)
+        assert a != other
+        for op in [
+            lambda x, y: x < y,
+            lambda x, y: x > y,
+            lambda x, y: x <= y,
+            lambda x, y: x >= y,
+        ]:
+            with pytest.raises(TypeError):
+                op(a, other)
+            with pytest.raises(TypeError):
+                op(other, a)

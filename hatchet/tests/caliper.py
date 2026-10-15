@@ -980,6 +980,28 @@ def test_inclusive_time_calculation(lulesh_caliper_json):
     )
 
 
+def test_inclusive_time_calculation_multi_rank(caliper_multi_rank):
+    """Validate update_inclusive_columns() on a native multi-rank profile.
+
+    This used to raise an AttributeError, see
+    https://github.com/LLNL/hatchet/issues/106.
+    """
+    gf = GraphFrame.from_caliperreader(caliper_multi_rank)
+    gf.update_inclusive_columns()
+
+    # the inclusive time of a (node, rank) is the exclusive time of all the
+    # rows of all the nodes in its subgraph (each counted once) for that rank
+    df = gf.dataframe.reset_index()
+    nids = df["node"].map(lambda n: n._hatchet_nid)
+    for node in gf.graph.traverse():
+        subgraph = nids.isin([n._hatchet_nid for n in node.traverse()])
+        expected = df[subgraph].groupby("rank")["time"].sum(min_count=1)
+        actual = df[nids == node._hatchet_nid]
+        assert np.allclose(
+            actual["time (inc)"], expected.reindex(actual["rank"]), equal_nan=True
+        )
+
+
 def test_sw4_cuda_from_caliperreader(sw4_caliper_cuda_activity_profile_cali):
     gf = GraphFrame.from_caliperreader(sw4_caliper_cuda_activity_profile_cali)
 

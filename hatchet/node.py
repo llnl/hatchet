@@ -190,13 +190,24 @@ class Node:
     def __hash__(self):
         return self._hatchet_nid
 
+    # Rich comparisons must return NotImplemented (rather than raise) when
+    # ``other`` is not a Node. Pandas and NumPy routinely compare index labels
+    # against objects of other types (e.g., the ints in a "rank" or "thread"
+    # level, or slices) and rely on Python turning NotImplemented into a
+    # TypeError (for ordering) or an identity check (for equality).
     def __eq__(self, other):
+        if not isinstance(other, Node):
+            return NotImplemented
         return self._hatchet_nid == other._hatchet_nid
 
     def __lt__(self, other):
+        if not isinstance(other, Node):
+            return NotImplemented
         return self._hatchet_nid < other._hatchet_nid
 
     def __gt__(self, other):
+        if not isinstance(other, Node):
+            return NotImplemented
         return self._hatchet_nid > other._hatchet_nid
 
     def __str__(self):
