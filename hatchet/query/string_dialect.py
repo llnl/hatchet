@@ -157,16 +157,14 @@ class StringQuery(Query):
             n = self.wcards[i]
             if n[1] != "":
                 bool_expr = ""
-                type_check = ""
-                for j, cond in enumerate(self.filters[i]):
+                type_parts = []
+                for cond in self.filters[i]:
                     if cond[0] is not None:
                         bool_expr += " {}".format(cond[0])
                     bool_expr += " {}".format(cond[1])
                     if cond[2] is not None:
-                        if j == 0:
-                            type_check += " {}".format(cond[2])
-                        else:
-                            type_check += " and {}".format(cond[2])
+                        type_parts.append(cond[2])
+                type_check = " and ".join(type_parts)
                 bool_expr = "lambda df_row: {}".format(bool_expr)
                 bool_expr = (
                     'lambda df_row: filter_check_types("{}", df_row, {})'.format(
