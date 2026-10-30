@@ -1128,6 +1128,65 @@ def test_rocm_kernel_records_merge_on_single_kernel_node():
     assert (parent_rows[metrics] == 0).to_numpy().all()
 
 
+def test_rocm_kernel_records_merge_with_mpi_rank():
+    """The kernel dispatch and counter records of a kernel give a single row per
+    rank when the records carry mpi.rank, as in an rocm-activity-profile with
+    rocm.counters from an MPI run (see LLNL/thicket#277).
+    """
+    kernel_name = "void RAJA::launch..."
+    records = []
+    for rank in (0, 1):
+        records += [
+            {
+                "path": ["main", "hipLaunchKernel"],
+                "mpi.rank": rank,
+                "time": 1.0 + rank,
+            },
+            {
+                "path": ["main", "hipLaunchKernel"],
+                "rocm.activity": "KERNEL_DISPATCH_COMPLETE",
+                "rocm.kernel.name": kernel_name,
+                "mpi.rank": rank,
+                "time (gpu)": 5.0 + rank,
+            },
+            {
+                "path": ["main", "hipLaunchKernel"],
+                "rocm.kernel.name": kernel_name,
+                "mpi.rank": rank,
+                "SQ_INSTS": 42.0 + rank,
+            },
+        ]
+    fake_reader = _FakeCaliperReader(
+        records=records,
+        attributes={
+            "path": _FakeCaliperAttribute("string"),
+            "rocm.activity": _FakeCaliperAttribute("string"),
+            "rocm.kernel.name": _FakeCaliperAttribute("string"),
+            "mpi.rank": _FakeCaliperAttribute("int", is_value=True),
+            "time": _FakeCaliperAttribute("double", is_value=True),
+            "time (gpu)": _FakeCaliperAttribute("double", is_value=True),
+            "SQ_INSTS": _FakeCaliperAttribute("double", is_value=True),
+        },
+    )
+
+    gf = CaliperNativeReader(
+        fake_reader, native=True, string_attributes=[], node_ordering=False
+    ).read()
+
+    assert gf.dataframe.index.names == ["node", "rank"]
+    assert gf.dataframe.index.is_unique
+
+    df = gf.dataframe.reset_index()
+
+    kernel_rows = df[df["name"] == kernel_name].sort_values("rank")
+    assert kernel_rows["rank"].tolist() == [0, 1]
+    assert kernel_rows["time (gpu)"].tolist() == [5.0, 6.0]
+    assert kernel_rows["SQ_INSTS"].tolist() == [42.0, 43.0]
+
+    launch_rows = df[df["name"] == "hipLaunchKernel"].sort_values("rank")
+    assert launch_rows["time"].tolist() == [1.0, 2.0]
+
+
 @pytest.mark.parametrize("native", [True, False])
 @pytest.mark.parametrize("level", ["loop.start_iteration", "sample.iteration"])
 def test_timeseries_missing_observations(native, level):

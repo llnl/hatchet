@@ -226,11 +226,17 @@ class CaliperNativeReader:
         # Aggregate on nid if timeseries data
         if self.timeseries_level in df_metrics:
             df_new = df_metrics.groupby("nid").aggregate("mean").reset_index()
-        # Don't agg multi rank, unless sampling: several sampling records (the
-        # same function sampled from different call stacks or innermost
-        # regions) can map to the same node, so they must be summed to give
-        # one row per node (and rank)
-        elif "mpi.rank" in df_metrics and not sampling:
+        # Don't agg multi rank if each (node, rank) has a single record.
+        # Otherwise, aggregate to one row per node and rank: several sampling
+        # records (the same function sampled from different call stacks or
+        # innermost regions) can map to the same node, and so can the kernel
+        # dispatch and counter records of a kernel (rocm-activity-profile with
+        # rocm.counters)
+        elif (
+            "mpi.rank" in df_metrics
+            and not sampling
+            and not df_metrics.duplicated(["nid", "mpi.rank"]).any()
+        ):
             df_new = df_metrics
         else:  # Aggregate data with string attributes appropriately
             group_cols = ["nid"]
