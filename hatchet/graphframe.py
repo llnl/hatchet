@@ -24,7 +24,6 @@ from .query import (
     is_hatchet_query,
     parse_string_dialect,
 )
-from .util import _validate_numpy_version_for_hdf
 from .util.deprecated import deprecated_params, deprecated
 from .util.dot import trees_to_dot
 
@@ -435,22 +434,10 @@ class GraphFrame:
         "Reading from/writing to HDF5 is deprecated and will be removed in a later version."
     )
     def from_hdf(filename, **kwargs):
-        try:
-            # import this lazily to avoid circular dependencies
-            from .readers.hdf5_reader import HDF5Reader
+        # import this lazily to avoid circular dependencies
+        from .readers.hdf5_reader import HDF5Reader
 
-            return HDF5Reader(filename).read(**kwargs)
-        except ValueError as ve:
-            if _validate_numpy_version_for_hdf():
-                ve_msg = str(ve)
-                if ve_msg.startswith("numpy.dtype size changed"):
-                    raise ValueError(
-                        "There is an incompatibility between the versions NumPy, Pandas, and/or PyTables. This is usually a side effect of using NumPy >= 2.0 with PyTables < 3.10."
-                    )
-                print(
-                    "The error below is not clearly caused by incompatibilities between the versions of NumPy, Pandas, and/or PyTables, but it may still be."
-                )
-            raise ve
+        return HDF5Reader(filename).read(**kwargs)
 
     @staticmethod
     def from_perfflowaspect(filename, scan_cpu_mem=False):
@@ -462,22 +449,10 @@ class GraphFrame:
         "Reading from/writing to HDF5 is deprecated and will be removed in a later version."
     )
     def to_hdf(self, filename, key="hatchet_graphframe", **kwargs):
-        try:
-            # import this lazily to avoid circular dependencies
-            from .writers.hdf5_writer import HDF5Writer
+        # import this lazily to avoid circular dependencies
+        from .writers.hdf5_writer import HDF5Writer
 
-            HDF5Writer(filename).write(self, key=key, **kwargs)
-        except ValueError as ve:
-            if _validate_numpy_version_for_hdf():
-                ve_msg = str(ve)
-                if ve_msg.startswith("numpy.dtype size changed"):
-                    raise ValueError(
-                        "There is an incompatibility between the versions NumPy, Pandas, and/or PyTables. This is usually a side effect of using NumPy >= 2.0 with PyTables < 3.10."
-                    )
-                print(
-                    "The error below is not clearly caused by incompatibilities between the versions of NumPy, Pandas, and/or PyTables, but it may still be."
-                )
-            raise ve
+        HDF5Writer(filename).write(self, key=key, **kwargs)
 
     def copy(self):
         """Return a partially shallow copy of the graphframe.

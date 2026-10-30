@@ -201,7 +201,8 @@ def test_inclusive_time_calculation(data_dir, calc_pi_hpct_db):
 
     gf.update_inclusive_columns()
     assert all(
-        gf.dataframe["time (inc)"].to_numpy() == gf.dataframe["orig_inc_time"].to_numpy()
+        gf.dataframe["time (inc)"].to_numpy()
+        == gf.dataframe["orig_inc_time"].to_numpy()
     )
 
 

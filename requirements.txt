@@ -8,7 +8,6 @@ numpy
 PyYAML
 cython
 multiprocess
-textX < 3.0.0; python_version < "3.6"
-textX >= 3.0.0; python_version >= "3.6"
+textX >= 3.0.0
 caliper-reader
 beautifulsoup4
